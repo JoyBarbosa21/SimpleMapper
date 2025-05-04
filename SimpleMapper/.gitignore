@@ -1,0 +1,33 @@
+# Build results
+bin/
+obj/
+*.user
+*.suo
+
+# Visual Studio Code
+.vscode/
+
+# Rider / JetBrains
+.idea/
+
+# DotNet-specific
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# OS
+.DS_Store
+
+# NuGet
+*.nupkg
+*.snupkg
+*.nuspec
+packages/
+
+# Logs
+*.log
+
+# Others
+*.vspscc
+*.vssscc
+*.orig
