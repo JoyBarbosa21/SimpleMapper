@@ -4,14 +4,23 @@ using SimpleMapper.Interface;
 namespace Microsoft.Extensions.DependencyInjection;
 public static class SimpleMapperExtensions
 {
-    public static IServiceCollection AddSimpleMapper(this IServiceCollection services, Action<SimpleMapperConfigurationBuilder> configAction)
+     public static IServiceCollection AddSimpleMapper(this IServiceCollection services, Action<SimpleMapperConfiguration> configure)
     {
-        var builder = new SimpleMapperConfigurationBuilder();
-        configAction(builder);
+        var configuration = new SimpleMapperConfiguration();
 
-        var config = builder.Build();
-        services.AddSingleton(config);
-        services.AddSingleton<ISimpleMapper, SimpleMapper.SimpleMapper>();
+        configure(configuration);
+ 
+        services.AddSingleton<ISimpleMapper>(new SimpleMapper.SimpleMapper(configuration));
+
+
         return services;
+    }
+
+    public static void AddProfile<TProfile>(this SimpleMapperConfiguration configuration)
+        where TProfile : ISimpleMapperProfile, new()
+    {
+        var profile = new TProfile();
+     
+        profile.Configure(configuration);
     }
 }

@@ -9,7 +9,7 @@ public class ProfessorMapperProfile : ISimpleMapperProfile
 {
     public void Configure(SimpleMapperConfiguration config)
     {
-        config.CreateMapper<ProfessorDto, Professor>();
+        config.CreateMap<Professor, ProfessorDto>();
     }
 
 }
