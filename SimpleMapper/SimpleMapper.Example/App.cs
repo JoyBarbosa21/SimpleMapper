@@ -6,9 +6,9 @@ namespace SimpleMapper.Example;
 
 public class App
 {
-    private readonly ISimpleMapper _mapper;
+    private readonly IMapper _mapper;
 
-    public App(ISimpleMapper mapper)
+    public App(IMapper mapper)
     {
         _mapper = mapper;
     }

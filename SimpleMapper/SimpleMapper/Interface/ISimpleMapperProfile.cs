@@ -4,5 +4,5 @@ namespace SimpleMapper.Interface;
 
 public interface ISimpleMapperProfile
 {
-    void Configure(SimpleMapperConfiguration config);
+   void Configure(SimpleMapperConfiguration config);
 }

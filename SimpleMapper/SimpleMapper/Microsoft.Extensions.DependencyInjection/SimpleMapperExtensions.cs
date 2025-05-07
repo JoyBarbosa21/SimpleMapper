@@ -1,17 +1,17 @@
+using SimpleMapper;
 using SimpleMapper.Configuration;
 using SimpleMapper.Interface;
 
 namespace Microsoft.Extensions.DependencyInjection;
 public static class SimpleMapperExtensions
 {
-     public static IServiceCollection AddSimpleMapper(this IServiceCollection services, Action<SimpleMapperConfiguration> configure)
+     public static IServiceCollection AddSimpleMapper(this IServiceCollection services, Action<SimpleMapperConfiguration> setup)
     {
-        var configuration = new SimpleMapperConfiguration();
+        var config = new SimpleMapperConfiguration();
+        setup(config);
 
-        configure(configuration);
- 
-        services.AddSingleton<ISimpleMapper>(new SimpleMapper.SimpleMapper(configuration));
-
+        var mapper = new SimpleMapper.SimpleMapper(config.Mappings);
+        services.AddSingleton<IMapper>(mapper);
 
         return services;
     }

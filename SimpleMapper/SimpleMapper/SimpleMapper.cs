@@ -1,61 +1,88 @@
 using System.Collections;
-using SimpleMapper.Configuration;
 using SimpleMapper.Interface;
+using SimpleMapper.Util;
 
 namespace SimpleMapper;
 
-public class SimpleMapper : ISimpleMapper
+public interface IMapper
 {
-    private readonly SimpleMapperConfiguration _config;
+    TDestination Map<TDestination>(object source);
+    List<TDestination> MapList<TSource, TDestination>(IEnumerable<TSource> sources);
+}
 
-    public SimpleMapper(SimpleMapperConfiguration config)
+public class SimpleMapper : IMapper
+{
+    private readonly Dictionary<(Type, Type), IMapAction> _mappings;
+
+    public SimpleMapper(Dictionary<(Type, Type), IMapAction> mappings)
     {
-        _config = config;
+        _mappings = mappings;
     }
 
     public TDestination Map<TDestination>(object source)
-        where TDestination : new()
     {
-        if (source == null) throw new ArgumentNullException(nameof(source));
+        ArgumentNullException.ThrowIfNull(source, nameof(source));
 
-        var sourceType = source.GetType();
-
-        if (typeof(IEnumerable).IsAssignableFrom(sourceType) 
-        && typeof(IEnumerable).IsAssignableFrom(typeof(TDestination)))
+        // Se for uma lista, trata como lista
+        if (source is IEnumerable<object> sourceList)
         {
-            return (TDestination)MapList((IEnumerable)source, 
-                typeof(TDestination).GetGenericArguments()[0]);
+            var sourceType = source.GetType().GenericTypeArguments[0];
+            var destType = typeof(TDestination).GenericTypeArguments[0];
+            var key = (sourceType, destType);
+
+            if (_mappings.TryGetValue(key, out var listAction))
+            {
+                var destinationList = (IList)Activator
+                    .CreateInstance(typeof(List<>).MakeGenericType(destType))!;
+                
+                foreach (var item in sourceList)
+                {
+                    if (item is null) continue;
+                    var mappedItem = listAction.Map(item);
+                    destinationList.Add(mappedItem);
+                }
+
+                return (TDestination)(object)destinationList;
+            }
         }
 
-        if (_config.TryGetMapping(sourceType, typeof(TDestination), out var mapping) && mapping != null)
-    {
-            var destination = new TDestination();
-            mapping(source, destination);
-            return destination;
+        // Tenta encontrar o mapeamento direto
+        var directKey = (source.GetType(), typeof(TDestination));
+        if (_mappings.TryGetValue(directKey, out var directAction))
+        {
+            return (TDestination)directAction.Map(source);
         }
 
-        throw new InvalidOperationException($"No mapping exists for {sourceType} -> {typeof(TDestination)}");
+        // Tenta encontrar o mapeamento reverso
+        var reverseKey = (typeof(TDestination), source.GetType());
+        if (_mappings.TryGetValue(reverseKey, out var reverseAction))
+        {
+            return (TDestination)reverseAction.Map(source);
+        }
+
+        throw new InvalidOperationException(
+            $"Mapeamento não encontrado para {source.GetType().Name} → {typeof(TDestination).Name}");
     }
 
-    private object MapList(IEnumerable source, Type destinationItemType)
+    public List<TDestination> MapList<TSource, TDestination>(IEnumerable<TSource> sources)
     {
-        var listType = typeof(List<>).MakeGenericType(destinationItemType);
-        var destinationList = (IList)Activator.CreateInstance(listType)!;
+        ArgumentNullException.ThrowIfNull(sources, nameof(sources));
 
-        foreach (var item in source)
+        var key = TypeResolver.CreateMapKey<TSource, TDestination>();
+
+        if (!_mappings.TryGetValue(key, out var action))
         {
-            var destinationItem = Activator.CreateInstance(destinationItemType)!;
+            throw new InvalidOperationException(
+                $"Mapeamento não encontrado para {typeof(TSource).Name} → {typeof(TDestination).Name}");
+        }
 
-            if (_config.TryGetMapping(item.GetType(), 
-            destinationItemType, out var mapping) && mapping != null)
-            {
-                mapping(item, destinationItem);
-                destinationList.Add(destinationItem);
-            }
-            else
-            {
-                throw new InvalidOperationException($"No mapping exists for {item.GetType()} -> {destinationItemType}");
-            }
+        var destinationList = new List<TDestination>();
+        foreach (var source in sources.Where(s => s != null))
+        {
+            if (source is null) continue;
+            
+            var mappedItem = (TDestination)action.Map(source);
+            destinationList.Add(mappedItem);
         }
 
         return destinationList;

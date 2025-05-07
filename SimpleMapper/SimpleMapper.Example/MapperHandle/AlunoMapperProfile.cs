@@ -9,10 +9,10 @@ public class AlunoMapperProfile : ISimpleMapperProfile
 {
     public void Configure(SimpleMapperConfiguration config)
     {
-        config.CreateMap<Aluno, AlunoDto>(map => {
-            map.ForMember(dest => dest.Nome, orig => orig.PrimeiroNome);
-            map.ForMember(dest => dest.Email, orig => orig.Contato);
-        }).ReverseMap();
+        config.CreateMap<Aluno, AlunoDto>()
+            .ForMember(dest => dest.Nome, orig => orig.PrimeiroNome)
+            .ForMember(dest => dest.Email, orig => orig.Contato)
+            .ReverseMap();
             
     }
     
