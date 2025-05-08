@@ -45,6 +45,8 @@ public static class PropertyCache<T>
         }
     }
 
+    public static IEnumerable<string> GetPropertyNames() => Getters.Keys;
+
     public static Func<T, object> GetGetter(string propertyName) =>
         Getters.TryGetValue(propertyName, out var getter) 
             ? getter 
@@ -63,10 +65,8 @@ public static class PropertyCache<TSource, TDestination>
     static PropertyCache()
     {
         CommonProperties = new HashSet<string>(
-            typeof(TSource).GetProperties()
-                .Select(p => p.Name)
-                .Intersect(typeof(TDestination).GetProperties()
-                    .Select(p => p.Name)));
+        PropertyCache<TSource>.GetPropertyNames()
+            .Intersect(PropertyCache<TDestination>.GetPropertyNames()));
     }
 
     public static IEnumerable<string> GetCommonProperties() => CommonProperties;
