@@ -7,7 +7,6 @@ namespace SimpleMapper;
 public interface IMapper
 {
     TDestination Map<TDestination>(object source);
-    List<TDestination> MapList<TSource, TDestination>(IEnumerable<TSource> sources);
 }
 
 public class SimpleMapper : IMapper
@@ -23,37 +22,60 @@ public class SimpleMapper : IMapper
     {
         ArgumentNullException.ThrowIfNull(source, nameof(source));
 
-        // Se for uma lista, trata como lista
-        if (source is IEnumerable<object> sourceList)
+        // Se for uma lista, cria uma lista do tipo correto
+        if (source is IEnumerable enumerable)
         {
-            var sourceType = source.GetType().GenericTypeArguments[0];
-            var destType = typeof(TDestination).GenericTypeArguments[0];
-            var key = (sourceType, destType);
+            var resultList = new List<object>();
+            var destType = typeof(TDestination);
 
-            if (_mappings.TryGetValue(key, out var listAction))
+            // Se o destino não é uma lista, não podemos mapear
+            if (!IsListType(destType))
             {
-                var destinationList = (IList)Activator
-                    .CreateInstance(typeof(List<>).MakeGenericType(destType))!;
-                
-                foreach (var item in sourceList)
+                throw new InvalidOperationException(
+                    $"Não é possível mapear uma lista para um tipo não-lista: {destType.Name}");
+            }
+
+            // Obtém o tipo dos elementos da lista
+            var elementType = destType.GetGenericArguments()[0];
+            
+            foreach (var item in enumerable)
+            {
+                if (item is null) continue;
+
+                var key = (item.GetType(), elementType);
+                if (!_mappings.TryGetValue(key, out var action))
                 {
-                    if (item is null) continue;
-                    var mappedItem = listAction.Map(item);
-                    destinationList.Add(mappedItem);
+                    throw new InvalidOperationException(
+                        $"Mapeamento não encontrado para {item.GetType().Name} → {elementType.Name}");
                 }
 
-                return (TDestination)(object)destinationList;
+                resultList.Add(action.Map(item));
             }
+
+            // Converte a lista para o tipo correto
+            var typedList = resultList.Select(x => Convert.ChangeType(x, elementType)).ToList();
+            
+            var listType = typeof(List<>).MakeGenericType(elementType);
+
+            var destinationList = (IList)Activator.CreateInstance(listType)!;
+
+            foreach (var item in typedList)
+            {
+                destinationList.Add(item);
+            }
+
+            return (TDestination)destinationList!;
         }
 
-        // Tenta encontrar o mapeamento direto
+        
+        // Mapeamento direto
         var directKey = (source.GetType(), typeof(TDestination));
         if (_mappings.TryGetValue(directKey, out var directAction))
         {
             return (TDestination)directAction.Map(source);
         }
 
-        // Tenta encontrar o mapeamento reverso
+        //Mapeamento reverso
         var reverseKey = (typeof(TDestination), source.GetType());
         if (_mappings.TryGetValue(reverseKey, out var reverseAction))
         {
@@ -64,27 +86,8 @@ public class SimpleMapper : IMapper
             $"Mapeamento não encontrado para {source.GetType().Name} → {typeof(TDestination).Name}");
     }
 
-    public List<TDestination> MapList<TSource, TDestination>(IEnumerable<TSource> sources)
+    private static bool IsListType(Type type)
     {
-        ArgumentNullException.ThrowIfNull(sources, nameof(sources));
-
-        var key = TypeResolver.CreateMapKey<TSource, TDestination>();
-
-        if (!_mappings.TryGetValue(key, out var action))
-        {
-            throw new InvalidOperationException(
-                $"Mapeamento não encontrado para {typeof(TSource).Name} → {typeof(TDestination).Name}");
-        }
-
-        var destinationList = new List<TDestination>();
-        foreach (var source in sources.Where(s => s != null))
-        {
-            if (source is null) continue;
-            
-            var mappedItem = (TDestination)action.Map(source);
-            destinationList.Add(mappedItem);
-        }
-
-        return destinationList;
+        return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>);
     }
 }

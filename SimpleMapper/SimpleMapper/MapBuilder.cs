@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Linq.Expressions;
 using SimpleMapper.Interface;
 using SimpleMapper.Util;
@@ -13,6 +11,32 @@ public class MapBuilder<TSource, TDestination> : IMapAction
     private readonly Dictionary<string, string> _propertyMaps = new();
     private bool _hasReverse;
 
+    public MapBuilder()
+    {
+        // Configura mapeamentos automáticos no construtor usando cache de propriedades
+        ConfigureAutomaticMappings();
+    }
+
+    private void ConfigureAutomaticMappings()
+    {
+        var properties = PropertyCache<TSource, TDestination>.GetCommonProperties();
+        
+        foreach (var prop in properties)
+        {
+            var getter = PropertyCache<TSource>.GetGetter(prop);
+            var setter = PropertyCache<TDestination>.GetSetter(prop);
+
+            if (getter != null && setter != null)
+            {
+                _mappings.Add((source, dest) =>
+                {
+                    var value = getter(source);
+                    setter(dest, value);
+                });
+            }
+        }
+    }
+    
     public MapBuilder<TSource, TDestination> ForMember<TMember>(
         Expression<Func<TDestination, TMember>> destinationMember,
         Expression<Func<TSource, TMember>> sourceMember)
@@ -23,8 +47,8 @@ public class MapBuilder<TSource, TDestination> : IMapAction
             var destPropName = destMember.Member.Name;
             var sourcePropName = srcMember.Member.Name;
 
-            var getter = PropertyAccessor<TSource>.GetGetter(sourcePropName);
-            var setter = PropertyAccessor<TDestination>.GetSetter(destPropName);
+            var getter = PropertyCache<TSource>.GetGetter(sourcePropName);
+            var setter = PropertyCache<TDestination>.GetSetter(destPropName);
 
             if (getter != null && setter != null)
             {
@@ -99,6 +123,8 @@ public class MapBuilder<TSource, TDestination> : IMapAction
 
     public object Map(object source)
     {
+        ArgumentNullException.ThrowIfNull(source);
+
         if (source is TDestination destSource)
         {
             return MapReverse(destSource);
@@ -106,19 +132,18 @@ public class MapBuilder<TSource, TDestination> : IMapAction
         
         if (source is TSource typedSource)
         {
-            var destination = CreateInstance<TDestination>();
+            var destination = TypeFactory<TDestination>.Create();
             
             foreach (var mapping in _mappings)
             {
                 mapping(typedSource, destination);
             }
 
-            return destination ?? throw new 
-                InvalidOperationException("Destination cannot be null");
+            return destination!;
         }
 
         throw new InvalidOperationException(
-            $"O objeto fonte deve ser do tipo {typeof(TSource).Name} ou {typeof(TDestination).Name}");
+            $"O objeto fonte deve ser do tipo {TypeCache.GetName<TSource>()} ou {TypeCache.GetName<TDestination>()}");
     }
 
     public object MapReverse(object source)
@@ -128,34 +153,15 @@ public class MapBuilder<TSource, TDestination> : IMapAction
 
         if (source is not TDestination typedSource)
             throw new InvalidOperationException(
-                $"O objeto fonte deve ser do tipo {typeof(TDestination).Name}");
+                $"O objeto fonte deve ser do tipo {TypeCache.GetName<TDestination>()}");
 
-        var destination = CreateInstance<TSource>();
+        var destination = TypeFactory<TSource>.Create();
 
         foreach (var mapping in _reverseMappings)
         {
             mapping(typedSource, destination);
         }
 
-        return destination ?? throw new 
-            InvalidOperationException("Destination cannot be null");
-    }
-
-    private static T CreateInstance<T>()
-    {
-        try
-        {
-            var constructor = typeof(T).GetConstructor(Type.EmptyTypes);
-            if (constructor == null)
-                throw new InvalidOperationException($"O tipo {typeof(T).Name} deve ter um construtor sem parâmetros.");
-
-            var newExpression = Expression.New(constructor);
-            var lambda = Expression.Lambda<Func<T>>(newExpression);
-            return lambda.Compile()();
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException($"Erro ao criar instância de {typeof(T).Name}: {ex.Message}");
-        }
-    }
+        return destination!;
+    } 
 }

@@ -54,7 +54,6 @@ public class MappingExpression<TSource, TDestination>
 
     private string GetSourcePropertyName<TMember>(Func<TSource, TMember> valueResolver)
     {
-        // Extract the property name from the resolver expression
         var expression = valueResolver.Target?.ToString() ?? "";
         var parts = expression.Split('.');
         return parts.Length > 0 ? parts[^1] : "";
