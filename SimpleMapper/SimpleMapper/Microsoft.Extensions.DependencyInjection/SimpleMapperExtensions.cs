@@ -1,6 +1,5 @@
 using SimpleMapper;
 using SimpleMapper.Configuration;
-using SimpleMapper.Interface;
 
 namespace Microsoft.Extensions.DependencyInjection;
 public static class SimpleMapperExtensions
@@ -16,11 +15,4 @@ public static class SimpleMapperExtensions
         return services;
     }
 
-    public static void AddProfile<TProfile>(this SimpleMapperConfiguration configuration)
-        where TProfile : ISimpleMapperProfile, new()
-    {
-        var profile = new TProfile();
-     
-        profile.Configure(configuration);
-    }
 }

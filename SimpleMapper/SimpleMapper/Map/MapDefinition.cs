@@ -10,7 +10,6 @@ public abstract class MapDefinition
 public class MapDefinition<TSource, TDestination> : MapDefinition
 {
     private readonly Dictionary<string, Func<TSource, object>> _memberMappings = new();
-    private bool _hasReverse;
 
     public MapDefinition<TSource, TDestination> ForMember(
         string destProp,
@@ -22,7 +21,6 @@ public class MapDefinition<TSource, TDestination> : MapDefinition
 
     public MapDefinition<TSource, TDestination> ReverseMap()
     {
-        _hasReverse = true;
         return this;
     }
 
@@ -50,25 +48,6 @@ public class MapDefinition<TSource, TDestination> : MapDefinition
         }
 
         return dest!;
-    }
-
-    public MapDefinition<TDestination, TSource> GetReverseMap()
-    {
-        if (!_hasReverse)
-            throw new InvalidOperationException("Reverse map not enabled.");
-
-        var reverse = new MapDefinition<TDestination, TSource>();
-        foreach (var destProp in typeof(TDestination).GetProperties())
-        {
-            var sourceProp = typeof(TSource).GetProperty(destProp.Name);
-            if (sourceProp != null)
-            {
-                reverse.ForMember(sourceProp.Name, d => destProp.GetValue(d)
-                    ?? throw new InvalidOperationException(
-                        $"Cannot get value for property {destProp.Name}"));
-            }
-        }
-        return reverse;
     }
 }
 

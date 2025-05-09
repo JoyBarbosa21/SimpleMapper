@@ -10,13 +10,10 @@ public static class PropertyCache<T>
 
     static PropertyCache()
     {
-        // Initialize in static constructor - runs only once
         Getters = new Dictionary<string, Func<T, object>>();
         Setters = new Dictionary<string, Action<T, object>>();
         Name = typeof(T).Name;
         
-        // Cache property accessors using Expression Trees
-        // This happens only once per type
         InitializeAccessors();
     }
 
@@ -27,12 +24,10 @@ public static class PropertyCache<T>
 
         foreach (var prop in typeof(T).GetProperties())
         {
-            // Cache getter
             var getter = Expression.Lambda<Func<T, object>>(
                 Expression.Convert(Expression.Property(param, prop), typeof(object)),
                 param).Compile();
 
-            // Cache setter
             var setter = Expression.Lambda<Action<T, object>>(
                 Expression.Assign(
                     Expression.Property(param, prop),

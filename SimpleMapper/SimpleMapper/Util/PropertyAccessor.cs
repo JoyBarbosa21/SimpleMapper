@@ -67,11 +67,4 @@ public static class PropertyAccessor<T>
         }
         return PropertyNames;
     }
-
-    public static bool HasProperty(string propertyName)
-    {
-        var getter = GetGetter(propertyName);
-        var setter = GetSetter(propertyName);
-        return getter != null && setter != null;
-    }
 }
